@@ -1,0 +1,355 @@
+Hướng dẫn chi tiết : 
+    Tham khảo : https://dev.to/ucan_lab/how-to-install-and-set-up-laravel-s-local-development-environment-with-docker-compose-5bcf
+    Source code : https://github.com/ucan-lab/docker-laravel
+
+B1 : Clone source code này về : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel
+        .dockerignore
+        .editorconfig
+        .github
+        .gitignore
+        compose.yml
+        infra
+        LICENSE
+        Makefile
+        README.md
+        renovate.json
+    
+        => Tạo thêm trong này folder src 
+
+    
+B2 : Chỉnh file compose.yml như sau : 
+
+    volumes:
+    db-store:
+    psysh-store:
+
+    configs:
+    db-config:
+        file: ./infra/docker/mysql/my.cnf
+
+    services:
+    app:
+        build:
+        context: .
+        dockerfile: ./infra/docker/php/Dockerfile
+        target: ${APP_BUILD_TARGET:-development}
+        volumes:
+        - type: bind
+            source: ./src
+            target: /workspace
+        - type: volume
+            source: psysh-store
+            target: /root/.config/psysh
+            volume:
+            nocopy: true
+        environment:
+        - APP_DEBUG=${APP_DEBUG:-true}
+        - APP_ENV=${APP_ENV:-local}
+        - APP_URL=${APP_URL:-http://localhost}
+        - LOG_CHANNEL=${LOG_CHANNEL:-stderr}
+        - LOG_STDERR_FORMATTER=${LOG_STDERR_FORMATTER:-Monolog\Formatter\JsonFormatter}
+        - DB_CONNECTION=${DB_CONNECTION:-mysql}
+        - DB_HOST=${DB_HOST:-db}
+        - DB_PORT=${DB_PORT:-3306}
+        - DB_DATABASE=${DB_DATABASE:-pbl6}
+        - DB_USERNAME=${DB_USERNAME:-hivanmanh}
+        - DB_PASSWORD=${DB_PASSWORD:-hivanmanh}
+
+    web:
+        build:
+        context: .
+        dockerfile: ./infra/docker/nginx/Dockerfile
+        ports:
+        - target: 80 
+            published: ${WEB_PUBLISHED_PORT:-99} # http://localhost:99 
+            protocol: tcp
+            mode: host
+        volumes:
+        - type: bind
+            source: ./src
+            target: /workspace
+
+    db:
+        build:
+        context: .
+        dockerfile: ./infra/docker/mysql/Dockerfile
+        ports:
+        - target: 3306  
+            published: ${DB_PUBLISHED_PORT:-3306} # 3306 
+            protocol: tcp
+            mode: host
+        configs:
+        - source: db-config
+            target: /etc/my.cnf
+        volumes:
+        - type: volume
+            source: db-store
+            target: /var/lib/mysql
+            volume:
+            nocopy: true
+        environment:
+        MYSQL_DATABASE: pbl6
+        MYSQL_USER: hivanmanh
+        MYSQL_PASSWORD: hivanmanh
+        MYSQL_ROOT_PASSWORD: hivanmanh
+        SERVICE_TAGS: dev
+        SERVICE_NAME: mysql
+
+    mailpit:
+        image: axllent/mailpit
+        ports:
+        - target: 8025
+            published: ${MAILPIT_PUBLISHED_PORT:-8025}
+            protocol: tcp
+            mode: host
+
+
+B2.1 
+    C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel\infra\docker\mysql\Dockerfile : 
+        FROM mysql/mysql-server:8.0 <= version mysql 
+
+    C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel\infra\docker\nginx\Dockerfile
+        FROM nginx:1.25 <= version nginx
+        
+    C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel\infra\docker\php\Dockerfile
+        FROM php:8.2-fpm-bullseye AS base  <= version php
+
+    => chỉnh lại cái này cho phù hợp (nếu muốn) . Còn Laravel 9.0 thì để nguyên và bỏ qua B2.1 cũng được 
+
+
+B3 : 
+    Chạy lệnh : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker-compose build
+
+B4 : 
+    Chạy lệnh : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker-compose up -d 
+
+B5 : 
+    Đến đây thì chạy lệnh : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker compose exec app composer create-project --prefer-dist laravel/laravel
+    => Để tạo project laravel sau đó chuyển source code project nào vào folder src . 
+    Hoặc 
+    Nếu có source sẵn rồi thì bỏ vào folder src 
+
+B6 : Chỉnh file .env trong src của project ta lại như sau C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel\src\.env : 
+    APP_NAME=Laravel
+    APP_ENV=local
+    APP_KEY=base64:rQkgGsYp06d1Te1COIcVu3uhDtmM8FDPsjWXAqPnAyo=
+    APP_DEBUG=true
+    APP_URL=http://localhost
+
+    LOG_CHANNEL=stack
+    LOG_DEPRECATIONS_CHANNEL=null
+    LOG_LEVEL=debug
+
+    DB_CONNECTION=mysql
+    DB_HOST=127.0.0.1
+    DB_PORT=3306
+    DB_DATABASE=laravel
+    DB_USERNAME=root
+    DB_PASSWORD=
+
+    BROADCAST_DRIVER=log
+    CACHE_DRIVER=file
+    FILESYSTEM_DISK=local
+    # QUEUE_CONNECTION=sync 
+    QUEUE_CONNECTION=database
+    SESSION_DRIVER=file
+    SESSION_LIFETIME=120
+
+    MEMCACHED_HOST=127.0.0.1
+
+    REDIS_HOST=127.0.0.1
+    REDIS_PASSWORD=null
+    REDIS_PORT=6379
+
+    MAIL_MAILER=smtp
+    MAIL_HOST=smtp.gmail.com
+    MAIL_PORT=587 
+    MAIL_USERNAME=pbl5.system.ai@gmail.com
+    MAIL_PASSWORD=lncsvbunlyothlja                       
+    MAIL_ENCRYPTION=tls 
+    MAIL_FROM_ADDRESS=pbl5.system.ai@gmail.com
+    MAIL_FROM_NAME="${APP_NAME}"
+
+    AWS_ACCESS_KEY_ID=
+    AWS_SECRET_ACCESS_KEY=
+    AWS_DEFAULT_REGION=us-east-1
+    AWS_BUCKET=
+    AWS_USE_PATH_STYLE_ENDPOINT=false
+
+    # PUSHER_APP_ID=1627590
+    # PUSHER_APP_KEY=2fdc02308c85a994bd65
+    # PUSHER_APP_SECRET=2d416c13998abdd9a8a8
+    # PUSHER_HOST=
+    # PUSHER_PORT=443
+    # PUSHER_SCHEME=http
+    # PUSHER_APP_CLUSTER=ap1
+
+    MIX_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+    MIX_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
+
+    # VITE_PUSHER_APP_KEY="${PUSHER_APP_KEY}"
+    # VITE_PUSHER_HOST="${PUSHER_HOST}"
+    # VITE_PUSHER_PORT="${PUSHER_PORT}"
+    # VITE_PUSHER_SCHEME="${PUSHER_SCHEME}"
+    # VITE_PUSHER_APP_CLUSTER="${PUSHER_APP_CLUSTER}"
+
+    # Google Capcha 
+    GOOGLE_RECAPTCHA_KEY=6LfVKR8nAAAAAB9oHO-h_S4DEi6dK0gArr3E6WzE
+    GOOGLE_RECAPTCHA_SECRET=6LfVKR8nAAAAANKaCmS2frdoPhmu3sU8q3GY4C_c
+
+    JWT_SECRET=42dECw50z46hE9LcqV3ToGE989sjzO7BE9guR7CZUDPHsWB1R4RMzc850Rff5tWb
+
+    L5_SWAGGER_CONST_HOST=http://project.test/api/v1
+
+
+B7 : Connect Mysql Docker với database nào đó : Vs code hoặc HeidiSQL với thông số sau : 
+
+    + host : 127.0.0.1
+    + port : 3306 
+    + database : pbl6 
+    + username : hivanmanh 
+    + password : hivanmanh 
+
+B8 : Chạy các lệnh sau : 
+    Chạy lệnh :  C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker compose exec app php artisan key:generate  <= tạo key mới 
+    
+    + B8.1 : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel\src\config\filesystems.php : 
+        'public' => [
+            'driver' => 'local',
+            // 'root' => storage_path('app/public'),
+            'root' => public_path('storage'),
+            'url' => env('APP_URL').'/storage',
+            'visibility' => 'public',
+        ],
+        => Nếu có storage rồi thì Xóa C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel\src\public\storage đi 
+        => Có một đặc điểm của docker so với chạy laragon hay xampp thường thì src\public\storage không phải là một 
+        folder, mà nó là một file . Chỉ cần file này cũng có thể liên kết và xem được các file trong folder 'storage/app/public'
+        => Chạy lệnh : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker compose exec app php artisan storage:link  <= tạo folder chứa tài nguyên
+        => Lệnh này sẽ tạo ra file docker-laravel\src\public\storage mới nhằm public ảnh . 
+        => Kể từ đây , khi mà chỉ cần 'storage/app/public' thêm bớt cái gì thì bên kia đều được 'src\public\storage' chỉ là một cái file thôi nhưng nó cũng ánh xạ cho ta được 
+        => NOTE : Thay đổi cái gì về file hệ thống thì nên : 'docker-compose build' sau đó 'docker-compose up -d' để chạy lại 
+
+    Chạy lệnh : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker compose exec app chmod -R 777 storage bootstrap/cache  
+
+B9 : Chạy lệnh 
+    C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker compose exec app php artisan migrate:refresh
+    => Quan trọng là lệnh này : Nếu như chạy thành công có nghĩa là project của ta đã kết nối được với database 
+
+
+Vào đây để xem trang web (đây cũng chính là địa chỉ để call API các thứ) : 
+    http://localhost:99/ 
+
+=> XONG ! 
+
+Nói thêm : 
+    + Ta chạy lệnh : >docker-compose up -d . Để chạy các image => trong đó có nginx cổng 80 ta đã chuyển thành cổng 99 
+        => ta bỏ source code vào folder src là nó tự động chạy project laravel cho ta rồi . Chứ không phải cần chạy : 'php artisan serve' nữa 
+
+    + Sau này chạy lệnh sẽ là : C:\Users\ADMIN\Downloads\Docker Laravel\docker-laravel>docker compose exec app [lệnh bình thường hay dùng]
+        Ví dụ bình thường chạy : php artisan make:model Product -m -c 
+        Bây giờ sẽ chạy : docker compose exec app php artisan make:model Product -m -c 
+        => Thêm 'docker compose exec app' ở đầu câu lệnh  
+
+----------------------------------------------------------------------------------------------
+Note : 
+    Lưu ý : Khi có thay đổi gì ở file compose.yml thì phải chạy lại để nó build lại cái mới 
+    Nói thêm : Một số lệnh khác như : 'docker-compose down -v' dùng để xóa hết (database,...)
+
+    + docker images 
+    + docker ps 
+    + docker-compose stop 
+    + docker-compose down -v 
+    + docker-compose build 
+    + docker-compose up -d
+    + docker compose exec app php artisan queue:work
+
+
+Có một điều là :
+    + Khi connect với VsCode hay HeidiSQL thì là : 
+        + host : 127.0.0.1
+        + port : 3306 
+        + database : pbl6 
+        + username : hivanmanh 
+        + password : hivanmanh 
+
+    + Còn với .env của laravel thì là : 
+        DB_CONNECTION=mysql
+        DB_HOST=127.0.0.1
+        DB_PORT=3306
+        DB_DATABASE=laravel
+        DB_USERNAME=root
+        DB_PASSWORD= 
+
+    Mà vẫn được . 
+
+
++ Tìm hiểu để chuyển 3306 về 3309 mà .env của laravel vẫn connect được 
+
+----------------------------------------------------------------------------------------------
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+Trong folder src : Nếu ta ghi : 
+    C:\Users\nguye\OneDrive\Máy tính\Laravel\learnlaravel>composer create-project --prefer-dist laravel/laravel:^9.0 pbl6 
+
+    => sau đó chuyển toàn bộ source code ở folder pbl6 sang folder src 
+
+-----------------------------------------------------------------
+Thay đổi cái gì thì nhớ buil lại : docker compose build
+
+-----------------------------------------------------------------
+$ make create-project
+$ mkdir -p src
+$ docker compose build
+$ docker compose up -d
+$ docker compose exec app composer create-project --prefer-dist laravel/laravel .
+$ docker compose exec app php artisan key:generate
+$ docker compose exec app php artisan storage:link
+$ docker compose exec app chmod -R 777 storage bootstrap/cache
+$ docker compose exec app php artisan migrate
+
+-----------------------------------------------------------------
+Nó hiện giao diện nginx là do lưu cache => ctrl + f5 để refresh lại cache => lúc này sẽ hiện ra laravel 
+    http://localhost:99/
+
+=> Không cần chạy project laravel như bình thường , chỉ cần chạy 'docker-compose up -d'
+    là nginx chạy và chạy project của mình . 
+
+-----------------------------------------------------------------
+C:\Users\ADMIN\Downloads\docker-laravel\src\public\storage\image\avatars
+http://localhost:99/storage/image/avatars/an_1693903251.jpg
+
+> docker compose exec app cat .env
+
+-----------------------------------------------------------------
+    env thì phải yêu cầu cổng 3306
+    còn mật khẩu hay không không quan tâm
+    vs code hay gui mysql thì yêu cầu có password
+    đổi thành côngg 3309 thì env lỗi
+    không thêm mật khẩu thì vs code lỗi
+
+
+-----------------------------------------------------------------
+[HAY] : Khi mà chạy bằng CMD sử dụng docker thì nó in ra log cho mình xem nữa . Bình thường nếu dùng Laragon hay dùng Xampp thì không có . 
+
+    C:\Users\ADMIN\Downloads\docker2\docker2>docker compose exec app php artisan queue:work
+   INFO  Processing jobs from the [send_mail_forgot_password] queue.
+  2023-09-18 13:25:04 App\Jobs\SendForgotPasswordEmail .................................................................................................................................................. RUNNING
+{"message":"Email sent to nguyenvanmanh2001it1@gmail.com with URL: http://localhost:8080/forgot-form?token=PxcQeCDuildta1Y73DLG354y75dBJdUh","context":{},"level":200,"level_name":"INFO","channel":"local","datetime":"2023-09-18T13:25:10.075617+00:00","extra":{}}
+{"message":"Email sent to nguyenvanmanh2001it1@gmail.com with URL: http://localhost:8080/forgot-form?token=PxcQeCDuildta1Y73DLG354y75dBJdUh","context":{},"level":200,"level_name":"INFO","channel":"local","datetime":"2023-09-18T13:25:10.088948+00:00","extra":{}}
+  2023-09-18 13:25:10 App\Jobs\SendForgotPasswordEmail .......................................................................................................................................... 5,993.57ms DONE
+
+-----------------------------------------------------------------
+
+
