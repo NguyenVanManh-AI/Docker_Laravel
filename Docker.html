@@ -1,3 +1,9 @@
+------------------------------------------------------
+|                                                    |
+| Option1 : Php Article - Composer - Mysql - Nginx   |
+|                                                    |
+------------------------------------------------------
+
 Hướng dẫn chi tiết : 
     Tham khảo : https://dev.to/ucan_lab/how-to-install-and-set-up-laravel-s-local-development-environment-with-docker-compose-5bcf
     Source code : https://github.com/ucan-lab/docker-laravel
@@ -262,6 +268,14 @@ Note :
     + docker-compose build 
     + docker-compose up -d
     + docker compose exec app php artisan queue:work
+    + docker-compose logs nodejs <= check lỗi 
+    + docker-compose logs mailpit <= check lỗi 
+    + docker-compose logs db <= check lỗi 
+        (nodejs, mailpit, db là tên các service đã được đặt trong composer.yml)
+    + docker-compose exec nodejs npm install
+    + docker-compose exec nodejs npm run start:prod
+    + docker-compose ps
+    + docker-compose up -d --build
 
 
 Có một điều là :
@@ -284,14 +298,255 @@ Có một điều là :
 
 
 + Tìm hiểu để chuyển 3306 về 3309 mà .env của laravel vẫn connect được 
++ Makefile trên window (Make file chỉ dùng sẵn cho MacOS và Linux , còn window thì không có nên phải cài mới dùng được) : 
+    + https://linuxhint.com/run-makefile-windows/
+
+----------------------------------------------------------------------------------------------
+Cài npm và nodejs cho project : 
+    + Lưu ý : file C:\Users\ADMIN\Downloads\PBL6\docker-laravel\.dockerignore
+        => chứa những file và folder sẽ được loại trừ ra khi build , không copy được hay làm gì luôn ,... 
+        => Chính vì thế vào bỏ dòng : /src/package.json đi để có thể cài được npm và nodejs 
+
+        => Nó cũng giống file .gitignore nhằm loại bỏ các folder hoặc file mà ta không muốn push lên git ví dụ như .env, vendor, node_modules
+
+----------------------------------------------------------------------------------------------
+C:\Users\ADMIN\Downloads\PBL6\docker-laravel>docker-compose up -d
+[+] Running 5/5
+ ✔ Container docker-laravel-web-1      Running                                                                                                                                                                0.0s
+ ✔ Container docker-laravel-db-1       Running                                                                                                                                                                0.0s
+ ✔ Container docker-laravel-mailpit-1  Running                                                                                                                                                                0.0s
+ ✔ Container docker-laravel-app-1      Running                                                                                                                                                                0.0s
+ ✔ Container docker-laravel-nodejs-1   Started                                                                                                                                                                2.8s
+
+C:\Users\ADMIN\Downloads\PBL6\docker-laravel>docker-compose logs nodejs <= dùng lệnh này để check lỗi 
+    => Container docker-laravel-nodejs-1   Started có nghĩa là nó được build thànhc công nhưng gặp lỗi gì đó nên nó không Running được 
+
+compose.yml : 
+    nodejs: 
+        build:
+        context: .
+        dockerfile: ./infra/docker/nodejs/Dockerfile
+        volumes:
+        - type: bind
+            source: ./src
+            target: /workspace
+        ports:
+        - target: 3000 
+
+    PBL6\docker-laravel\infra\docker\nodejs\Dockerfile : 
+        FROM node:18.14.2 AS base
+        WORKDIR /workspace
+        RUN apt-get update && apt-get install -y nodejs npm
+        COPY ./src/package*.json ./
+        RUN npm install
+        COPY ./src ./
+
+
+----------------------------------------------------------------------------------------------
+------------------------------------------------------------
+|                                                          |
+| Option2 : Php Article - NPM - Composer - Mysql - Nginx   |
+|                                                          |
+------------------------------------------------------------
++ Để chạy được (chưa đổi cổng đồ) 
+    B1 : Clone source code này về : git@github.com:aschmelyun/docker-compose-laravel.git
+    B2 : Giải nén ra và chạy lệnh : C:\Users\ADMIN\Downloads\docker-compose-laravel>docker-compose up -d --build app
+    B3 : Bỏ source code project laravel vào folder src 
+    B4 : Chỉnh file .env của project như sau : 
+        DB_CONNECTION=mysql
+        DB_HOST=mysql
+        DB_PORT=3306
+        DB_DATABASE=homestead
+        DB_USERNAME=homestead
+        DB_PASSWORD=secret
+
+    B5 : Connect Database : 
+        Host     : 127.0.0.1
+        Port     : 3306 
+        Database : homestead
+        Username : homestead
+        Password : secret
+
+    B6 : Chạy các lệnh sau để tạo database và public tài nguyên :
+        C:\Users\ADMIN\Downloads\docker-compose-laravel\>docker-compose run --rm artisan migrate:refresh
+        C:\Users\ADMIN\Downloads\docker-compose-laravel\>docker-compose run --rm artisan storage:link
+
+    => XONG ! 
+        + Vào : http://localhost/ (port 80) sẽ là URL của trang web 
+
+    Các lệnh thao tác bình thường của php, composer, npm tương ứng trong Docker : 
+
+        + npm install jquery                          => docker-compose run --rm npm install jquery   
+        + php artisan route:list                      => docker-compose run --rm artisan route:list
+        + composer require brian2694/laravel-toastr   => docker-compose run --rm composer require brian2694/laravel-toastr
+
+        => npm và composer là cộng thêm cho lệnh 'docker-compose run -rm' ở đầu
+        => php là bỏ từ php ở đầu đi và cộng thêm 'docker-compose run -rm' ở đầu  
 
 ----------------------------------------------------------------------------------------------
 
++ Chỉnh Port và thông số của mysql lại : 
+    + Lưu ý : 
+        + docker-compose-laravel\dockerfiles\nginx.dockerfile : 
+            + FROM nginx:stable-alpine
+        + docker-compose-laravel\dockerfiles\php.dockerfile : 
+            + FROM php:8-fpm-alpine
+        + docker-compose-laravel\dockerfiles\php.root.dockerfile
+            + FROM php:8-fpm-alpine
+        => Để nguyên như vậy , nếu chỉnh lại thì nó sẽ sai 
+
+    + Chỉnh port , version và chỉnh mysql lại : Ta sẽ được file docker-compose.yml như sau : 
+
+        version: '3'
+
+        networks:
+            laravel:
+        
+        services:
+            app:
+                build:
+                    context: ./dockerfiles
+                    dockerfile: nginx.dockerfile
+                    args:
+                        - UID=${UID:-1000}
+                        - GID=${GID:-1000}
+                ports:
+                    - "99:80"
+                volumes:
+                    - ./src:/var/www/html:delegated
+                depends_on:
+                    - php
+                    - redis
+                    - mysql
+                    - mailhog
+                networks:
+                    - laravel
+        
+        mysql:
+            image: mysql/mysql-server:8.0
+            # image: mariadb:10.6
+            restart: unless-stopped
+            tty: true
+            ports:
+                - "3309:3306"
+            environment:
+                MYSQL_DATABASE: pbl6
+                MYSQL_USER: hivanmanh
+                MYSQL_PASSWORD: hivanmanh
+                MYSQL_ROOT_PASSWORD: hivanmanh
+                SERVICE_TAGS: dev
+                SERVICE_NAME: mysql
+            networks:
+                - laravel
+        
+        php:
+            build:
+                context: ./dockerfiles
+                dockerfile: php.dockerfile
+                args:
+                    - UID=${UID:-1000}
+                    - GID=${GID:-1000}
+            ports:
+                - "9000:9000"
+            volumes:
+                - ./src:/var/www/html:delegated
+            networks:
+                - laravel
+        
+        redis:
+            image: redis:alpine
+            restart: unless-stopped
+            ports:
+                - "6379:6379"
+            networks:
+                - laravel
+        
+        composer:
+            build:
+                context: ./dockerfiles
+                dockerfile: php.dockerfile
+                args:
+                    - UID=${UID:-1000}
+                    - GID=${GID:-1000}
+            volumes:
+                - ./src:/var/www/html
+            depends_on:
+                - php
+            entrypoint: [ 'composer', '--ignore-platform-reqs' ]
+            networks:
+                - laravel
+        
+        npm:
+            image: node:18.14.2
+            # image: node:current-alpine
+            volumes:
+                - ./src:/var/www/html
+            ports:
+                - "3000:3000"
+                - "3001:3001"
+                - "5173:5173"
+            working_dir: /var/www/html
+            entrypoint: [ 'npm' ]
+            networks:
+                - laravel
+        
+        artisan:
+            build:
+            context: ./dockerfiles
+            dockerfile: php.dockerfile
+            args:
+                - UID=${UID:-1000}
+                - GID=${GID:-1000}
+            volumes:
+                - ./src:/var/www/html:delegated
+            depends_on:
+                - mysql
+            entrypoint: [ 'php', '/var/www/html/artisan' ]
+            networks:
+                - laravel
+        
+        mailhog:
+            # image: mailhog/mailhog:latest
+            image: axllent/mailpit
+            ports:
+                - "1025:1025"
+                - "8025:8025"
+            networks:
+                - laravel
+        
+
+    + Chỉnh file .env của project lại : 
+        DB_CONNECTION=mysql
+        DB_HOST=mysql
+        DB_PORT=3306
+        DB_DATABASE=pbl6
+        DB_USERNAME=hivanmanh
+        DB_PASSWORD=hivanmanh
+
+    + Connect Database : 
+        Host     : 127.0.0.1
+        Port     : 3309
+        Database : pbl6
+        Username : hivanmanh
+        Password : hivanmanh
+
+    
+    + Có một đặt điểm ở đây là : 
+        + Cấu hình ở file .env và connect database có điểm khác nhau , port 3306 và 3309 
+        + Có thể là do 3306 là private thì project laravel lắng nghe được, còn public ra là 3309 cho những cái khác 
 
 
++ Sau khi đã chỉnh xong hết thì ta chạy các lệnh sau : 
+    docker-compose up -d --build app
+    docker compose run --rm composer install 
+    docker compose run --rm npm install 
+    docker compose run --rm artisan key:generate
+    docker-compose run --rm artisan migrate:refresh
+    docker-compose run --rm artisan storage:link
 
++ Truy cập vào : URL = http://localhost:99/
 
-
+=> XONG ! 
 
 
 
