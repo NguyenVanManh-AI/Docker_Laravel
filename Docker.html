@@ -543,8 +543,10 @@ compose.yml :
 
 + Sau khi đã chỉnh xong hết thì ta chạy các lệnh sau : 
     docker-compose up -d --build app
+	docker-compose exec app cp /var/www/html/.env.example /var/www/html/.env <= Với OPTION2 này thì thao tác trên /var/www/html chứ không phải /src nữa 
     docker compose run --rm composer install 
-    docker compose run --rm npm install 
+    docker compose run --rm npm install  
+    docker-compose exec app chmod -R 777 /var/www/html <= lệnh này cho phép truy cập vào tất cả folder và file nằm trong folder này 
     docker compose run --rm artisan key:generate
     docker-compose run --rm artisan migrate:refresh
     docker-compose run --rm artisan storage:link
